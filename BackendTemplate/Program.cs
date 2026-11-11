@@ -5,6 +5,7 @@ using BackendTemplate.Schedule;
 using BackendTemplate.Services;
 using BackendTemplate.Services.utils;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Text.Json.Serialization;
 
 namespace BackendTemplate;
@@ -24,7 +25,9 @@ public static class Program
         builder.InjectConfig();
         var databaseConfig = builder.Configuration.GetRequiredSection("Database").Get<DatabaseConfig>()!;
 
-        builder.Services.AddDbContext<AppDbContext>(options => ConfigureDatabase(options, databaseConfig));
+        builder.Services.AddDbContextPool<AppDbContext>(
+            options => ConfigureDatabase(options, databaseConfig),
+            poolSize: databaseConfig.PoolSize);
         builder.Services.AddControllers(options =>
             {
                 options.Filters.AddService<RequestLoggingFilterService>();
@@ -66,6 +69,7 @@ public static class Program
         app.UseAuthorization();
         app.UseMiddleware<RequestLoggingMiddleware>();
         app.UseMiddleware<ErrorHandlerMiddleware>();
+        app.UseMiddleware<ConcurrencyLimitMiddleware>();
         app.UseMiddleware<TokenAuthMiddleware>();
         app.MapControllers();
         app.MapHealthChecks("/health");
@@ -89,7 +93,12 @@ public static class Program
             case "postgresql":
             case "postgres":
             case "npgsql":
-                options.UseNpgsql(config.ConnectionString);
+                var connectionString = new NpgsqlConnectionStringBuilder(config.ConnectionString)
+                {
+                    Pooling = true,
+                    MaxPoolSize = config.PoolSize,
+                }.ConnectionString;
+                options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(0));
                 break;
             case "sqlite":
                 options.UseSqlite(config.ConnectionString);

@@ -70,7 +70,8 @@ SQLite 配置：
 {
   "Database": {
     "Provider": "Sqlite",
-    "ConnectionString": "Data Source=/tmp/backend-template.db"
+    "ConnectionString": "Data Source=/tmp/backend-template.db",
+    "PoolSize": 20
   }
 }
 ```
@@ -81,12 +82,15 @@ PostgreSQL 配置：
 {
   "Database": {
     "Provider": "PostgreSql",
-    "ConnectionString": "Host=localhost;Port=5432;Database=app;Username=app;Password=change-me"
+    "ConnectionString": "Host=localhost;Port=5432;Database=app;Username=app;Password=change-me",
+    "PoolSize": 20
   }
 }
 ```
 
 SQLite 模式在 `BuildApp` 时执行 `EnsureCreated`，适合本地和集成测试。PostgreSQL 不会自动建库或迁移，部署前应显式执行 EF Core Migration。
+
+`PoolSize` 同时控制 EF DbContext Pool；PostgreSQL 模式下也会写入 Npgsql `MaxPoolSize`。请求并发限制配置在 `Server.MaxConcurrency` 和 `Server.WaitTimeoutSeconds`，详细配比见开发约定。
 
 ## Docker
 

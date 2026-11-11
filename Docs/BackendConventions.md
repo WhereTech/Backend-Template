@@ -55,6 +55,39 @@ services.AddOptions<ExampleConfig>()
 
 不要等到第一次请求才发现配置错误。真实配置只进入 `appsettings.json`、环境变量或项目外配置文件；样例写入 `appsettings.sample.json`。
 
+## 数据库连接池与请求流量控制
+
+模板参考 JZY2-Backend 使用两层保护：
+
+1. `AddDbContextPool` 复用 EF Core `AppDbContext`；
+2. PostgreSQL 使用 Npgsql 内置连接池，并把 `MaxPoolSize` 设置为 `Database.PoolSize`；
+3. `ConcurrencyLimitMiddleware` 使用进程内 `SemaphoreSlim` 限制同时进入业务管线的请求数；
+4. 等待超过 `Server.WaitTimeoutSeconds` 后抛出 `TooManyRequests`。
+
+样例配置：
+
+```json
+{
+  "Server": {
+    "MaxConcurrency": 20,
+    "WaitTimeoutSeconds": 30
+  },
+  "Database": {
+    "PoolSize": 20
+  }
+}
+```
+
+配比注意事项：
+
+- 两个限制都是单进程值；部署多个实例时，总并发和数据库总连接数约为单实例配置乘以实例数；
+- 如果大多数请求都访问数据库，`MaxConcurrency` 不应明显大于 `PoolSize`，否则请求会堆积等待数据库连接；
+- Hangfire Job、启动检查和其他后台服务也会使用数据库，应给它们预留连接。高负载服务可设置 `MaxConcurrency < PoolSize`；
+- 一个请求可能并行执行多个数据库操作时，需要更保守地设置并发上限；
+- Npgsql 连接池和 EF DbContext Pool 是不同层：前者复用物理连接，后者复用 DbContext 实例，不能只配置其中一个；
+- Semaphore 是单机内存限流，不是分布式限流，也不按用户或接口区分。如需公网防刷或多实例全局配额，应在网关或 Redis 等共享组件上增加限流；
+- 当前 `TooManyRequests` 沿用统一 `errCode` 响应。如果需要 HTTP 429，应在全局错误处理中统一映射。
+
 ## 统一响应与异常
 
 业务接口通常返回 `ServerResponse`：
