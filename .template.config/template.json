@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "WhereTech",
+  "classifications": ["Web", "Web API", "ASP.NET Core", "Database"],
+  "identity": "WhereTech.Backend.Template",
+  "name": "WhereTech ASP.NET Core Backend",
+  "shortName": "wt-backend",
+  "sourceName": "BackendTemplate",
+  "defaultName": "MyCompany.MyProduct.Backend",
+  "preferNameDirectory": false,
+  "tags": { "language": "C#", "type": "project" },
+  "symbols": {
+    "FileStorage": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include the optional S3/MinIO file storage services."
+    },
+    "SMS": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include the optional Alibaba Cloud SMS service."
+    },
+    "ServiceName": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "Docker/container/config service name. Defaults to the project name in kebab-case."
+    },
+    "ProjectServiceName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "kebabCase"
+    },
+    "ResolvedServiceName": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "ServiceName",
+        "fallbackVariableName": "ProjectServiceName"
+      },
+      "replaces": "backend-template"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "BackendTemplate.sln" },
+    { "path": "BackendTemplate/BackendTemplate.csproj" }
+  ],
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".git/**",
+            ".idea/**",
+            ".vscode/**",
+            "Docs/**",
+            "README.md",
+            "**/.DS_Store",
+            "**/bin/**",
+            "**/obj/**"
+          ]
+        },
+        {
+          "condition": "(!FileStorage)",
+          "exclude": ["BackendTemplate/Services/FileStorage/**"]
+        },
+        {
+          "condition": "(!SMS)",
+          "exclude": ["BackendTemplate/Services/SMS/**"]
+        }
+      ]
+    }
+  ]
+}
